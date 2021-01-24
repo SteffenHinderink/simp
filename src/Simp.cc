@@ -22,16 +22,7 @@ SimplicialComplex exampleSC() {
     return sc;
 }
 
-void printMatrix(std::vector<std::vector<int>> m) {
-    for (int i = 0; i < m.size(); i++) {
-        for (int j = 0; j < m[i].size(); j++) {
-            std::cout << std::setw(3) << m[i][j];
-        }
-        std::cout << std::endl;
-    }
-}
-
-std::vector<int> b(SimplicialComplex sc) {
+std::vector<int> betti(SimplicialComplex sc) {
 
     auto equal = [](std::vector<int> a, std::vector<int> b) {
         int n = a.size();
@@ -70,28 +61,40 @@ std::vector<int> b(SimplicialComplex sc) {
         return (int) signum;
     };
 
-    bool firstImg = true;
-    auto imgDim = [firstImg](std::vector<std::vector<int>> m) mutable {
-
-        // TODO: Bilddimension von Tarek
-
-        if (firstImg) {
-            firstImg = false;
-            return 3;
+    auto rank = [](std::vector<std::vector<int>> m) {
+        std::vector<std::vector<float>> a(m.size());
+        for (int i = 0; i < a.size(); i++) {
+            a[i] = std::vector<float>(m[i].size());
+            for (int j = 0; j < a[i].size(); j++) {
+                a[i][j] = m[i][j];
+            }
         }
-        return 6;
-    };
 
-    bool firstKer = true;
-    auto kerDim = [firstKer](std::vector<std::vector<int>> m) mutable {
-
-        // TODO: Kerndimension von Tarek
-
-        if (firstKer) {
-            firstKer = false;
-            return 0;
+        int cnt = 0;
+        for (int col = 0; col < a[0].size(); col++) {
+            int k = -1;
+            for (int row = 0; row < a.size(); row++) {
+                if (k < 0) {
+                    if (a[row][col] != 0) {
+                        k = row;
+                        float value = a[k][col];
+                        for (int i = col; i < a[k].size(); i++) {
+                            a[k][i] /= value;
+                        }
+                        cnt++;
+                    }
+                } else {
+                    float value = a[row][col];
+                    for (int i = col; i < a[row].size(); i++) {
+                        a[row][i] -= value * a[k][i];
+                    }
+                }
+            }
+            if (k >= 0) {
+                a.erase(a.begin() + k);
+            }
         }
-        return 6;
+        return cnt;
     };
 
     int maxFacetDim = 0;
@@ -111,8 +114,6 @@ std::vector<int> b(SimplicialComplex sc) {
 
     int preImgDim = 0;
     for (int idx = maxFacetDim - 1; idx > 0; idx--) {
-        std::cout << "--------" << std::endl << "delta_" << idx << ": C_" << idx << " -> C_" << idx - 1 << std::endl;
-
         std::vector<std::vector<int>> cNext;
         for (int i = 0; i < sc.facets.size(); i++) {
             if (sc.facets[i].size() == idx) {
@@ -138,11 +139,6 @@ std::vector<int> b(SimplicialComplex sc) {
                 }
             }
         }
-
-        std::cout << "C_" << idx << ":" << std::endl;
-        printMatrix(cCurr);
-        std::cout << "C_" << idx - 1 << ":" << std::endl;
-        printMatrix(cNext);
 
         std::vector<std::vector<int>> delta(cNext.size());
         for (int i = 0; i < cNext.size(); i++) {
@@ -171,11 +167,9 @@ std::vector<int> b(SimplicialComplex sc) {
             }
         }
 
-        std::cout << "delta_" << idx << ":" << std::endl;
-        printMatrix(delta);
-
-        b[idx] = kerDim(delta) - preImgDim;
-        preImgDim = imgDim(delta);
+        int r = rank(delta);
+        b[idx] = cCurr.size() - r - preImgDim;
+        preImgDim = r;
         cCurr = cNext;
     }
     b[0] = sc.n - 1 - preImgDim;
@@ -185,11 +179,8 @@ std::vector<int> b(SimplicialComplex sc) {
 
 int main() {
     SimplicialComplex sc = exampleSC();
-    printMatrix(sc.facets);
-    std::cout << "----------------" << std::endl;
-    std::vector<int> betas = b(sc);
-    std::cout << "----------------" << std::endl;
-    for (int i = 0; i < betas.size(); i++) {
-        std::cout << "b_" << i << ": " << betas[i] << std::endl;
+    std::vector<int> b = betti(sc);
+    for (int i = 0; i < b.size(); i++) {
+        std::cout << "b_" << i << ": " << b[i] << std::endl;
     }
 }
