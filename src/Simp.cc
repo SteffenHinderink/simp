@@ -1,26 +1,12 @@
 #include <iostream>
-#include <iomanip>
 #include <vector>
+#include <fstream>
+#include <sstream>
 
 struct SimplicialComplex {
     int n;
     std::vector<std::vector<int>> facets;
 };
-
-SimplicialComplex exampleSC() {
-    SimplicialComplex sc;
-    sc.n = 7;
-    std::vector<std::vector<int>> facets(7);
-    facets[0] = {2, 3, 7};
-    facets[1] = {4, 5, 7};
-    facets[2] = {5, 6, 7};
-    facets[3] = {1, 2};
-    facets[4] = {3, 4};
-    facets[5] = {6, 1};
-    facets[6] = {1, 7};
-    sc.facets = facets;
-    return sc;
-}
 
 std::vector<int> betti(SimplicialComplex sc) {
 
@@ -177,10 +163,45 @@ std::vector<int> betti(SimplicialComplex sc) {
     return b;
 }
 
-int main() {
-    SimplicialComplex sc = exampleSC();
+int main(int argc, char** argv) {
+    SimplicialComplex sc;
+    if (argc == 2) {
+        std::ifstream file(argv[1]);
+        file >> sc.n;
+        std::string line;
+        std::getline(file, line);
+        while (std::getline(file, line)) {
+            std::istringstream iss(line);
+            std::vector<int> facet;
+            int x;
+            while (iss >> x) {
+                facet.push_back(x);
+            }
+            sc.facets.push_back(facet);
+        }
+    } else {
+        std::cout << "n:" << std::endl;
+        std::cin >> sc.n;
+        std::string line;
+        std::getline(std::cin, line);
+        std::cout << "facets (vertices separated by spaces, stop with empty line):" << std::endl;
+        while (std::getline(std::cin, line)) {
+            if (line.empty()) {
+                break;
+            }
+            std::istringstream iss(line);
+            std::vector<int> facet;
+            int x;
+            while (iss >> x) {
+                facet.push_back(x);
+            }
+            sc.facets.push_back(facet);
+        }
+    }
+    
     std::vector<int> b = betti(sc);
     for (int i = 0; i < b.size(); i++) {
         std::cout << "b_" << i << ": " << b[i] << std::endl;
     }
+    return 0;
 }
