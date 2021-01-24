@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <fstream>
 #include <sstream>
@@ -8,23 +9,23 @@ struct SimplicialComplex {
     std::vector<std::vector<int>> facets;
 };
 
-std::vector<int> betti(SimplicialComplex sc) {
-
-    auto equal = [](std::vector<int> a, std::vector<int> b) {
-        int n = a.size();
-        for (int i = 0; i < n; i++) {
-            bool contained = false;
-            for (int j = 0; j < n && !contained; j++) {
-                if (a[i] == b[j]) {
-                    contained = true;
-                }
-            }
-            if (!contained) {
-                return false;
+bool permuted(std::vector<int> a, std::vector<int> b) {
+    int n = a.size();
+    for (int i = 0; i < n; i++) {
+        bool contained = false;
+        for (int j = 0; j < n && !contained; j++) {
+            if (a[i] == b[j]) {
+                contained = true;
             }
         }
-        return true;
-    };
+        if (!contained) {
+            return false;
+        }
+    }
+    return true;
+};
+
+std::vector<int> betti(SimplicialComplex sc) {
 
     auto signum = [](std::vector<int> a, std::vector<int> b) {
         int n = a.size();
@@ -90,6 +91,9 @@ std::vector<int> betti(SimplicialComplex sc) {
         }
     }
     std::vector<int> b(maxFacetDim);
+    if (maxFacetDim == 0) {
+        return b;
+    }
 
     std::vector<std::vector<int>> cCurr;
     for (int i = 0; i < sc.facets.size(); i++) {
@@ -116,7 +120,7 @@ std::vector<int> betti(SimplicialComplex sc) {
                 }
                 bool newFacet = true;
                 for (int k = 0; k < cNext.size() && newFacet; k++) {
-                    if (equal(facet, cNext[k])) {
+                    if (permuted(facet, cNext[k])) {
                         newFacet = false;
                     }
                 }
@@ -144,7 +148,7 @@ std::vector<int> betti(SimplicialComplex sc) {
                 }
                 bool inserted = false;
                 for (int k = 0; k < cNext.size() && !inserted; k++) {
-                    if (equal(facet, cNext[k])) {
+                    if (permuted(facet, cNext[k])) {
                         delta[k][i] = sign * signum(facet, cNext[k]);
                         inserted = true;
                     }
@@ -161,6 +165,65 @@ std::vector<int> betti(SimplicialComplex sc) {
     b[0] = sc.n - 1 - preImgDim;
 
     return b;
+}
+
+std::vector<int> sigma(SimplicialComplex sc) {
+
+    auto intersect = [](SimplicialComplex sc, int mask) {
+        SimplicialComplex intersection;
+        intersection.n = 0;
+        for (int i = 0; i < sc.n; i++) {
+            if ((mask >> i) & 1) {
+                intersection.n++;
+            }
+        }
+        for (int i = 0; i < sc.facets.size(); i++) {
+            std::vector<int> facet;
+            for (int j = 0; j < sc.facets[i].size(); j++) {
+                if ((mask >> (sc.facets[i][j] - 1)) & 1) {
+                    facet.push_back(sc.facets[i][j]);
+                }
+            }
+            if (facet.size() > 0) {
+                bool newFacet = true;
+                for (int j = 0; j < intersection.facets.size() && newFacet; j++) {
+                    if (permuted(facet, intersection.facets[j])) {
+                        newFacet = false;
+                    }
+                }
+                if (newFacet) {
+                    intersection.facets.push_back(facet);
+                }
+            }
+        }
+        return intersection;
+    };
+
+    auto binomialCoefficient = [](int n, int k) {
+        float bc = 1;
+        for (int j = 1; j <= k; j++) {
+            bc *= (float) (n + 1 - j) / j;
+        }
+        return (int) bc;
+    };
+
+    std::vector<int> sigma = betti(sc);
+    for (int i = 0; i < (1 << sc.n) - 1; i++) {
+        SimplicialComplex intersection = intersect(sc, i);
+        std::vector<int> b = betti(intersection);
+        int bc = binomialCoefficient(sc.n, intersection.n);
+        for (int j = 0; j < sigma.size(); j++) {
+            sigma[j] += (j < b.size() ? b[j] : 0) / bc;
+        }
+    }
+    return sigma;
+}
+
+std::vector<int> mu(SimplicialComplex sc) {
+
+
+
+    return {1, 2, 3};
 }
 
 int main(int argc, char** argv) {
@@ -200,8 +263,12 @@ int main(int argc, char** argv) {
     }
     
     std::vector<int> b = betti(sc);
+    std::vector<int> s = sigma(sc);
+    std::vector<int> u = mu(sc);
+
+    std::cout << "   | Betti | sigma |    mu" << std::endl << "---+-------+-------+-------" << std::endl;
     for (int i = 0; i < b.size(); i++) {
-        std::cout << "b_" << i << ": " << b[i] << std::endl;
+        std::cout << std::setw(2) << i << " | " << std::setw(5) << b[i] << " | " << std::setw(5) << s[i] << " | " << std::setw(5) << u[i] << std::endl;
     }
     return 0;
 }
