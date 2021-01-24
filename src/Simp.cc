@@ -167,7 +167,7 @@ std::vector<int> betti(SimplicialComplex sc) {
     return b;
 }
 
-std::vector<int> sigma(SimplicialComplex sc) {
+std::vector<float> sigma(SimplicialComplex sc) {
 
     auto intersect = [](SimplicialComplex sc, int mask) {
         SimplicialComplex intersection;
@@ -180,7 +180,7 @@ std::vector<int> sigma(SimplicialComplex sc) {
         for (int i = 0; i < sc.facets.size(); i++) {
             std::vector<int> facet;
             for (int j = 0; j < sc.facets[i].size(); j++) {
-                if ((mask >> (sc.facets[i][j] - 1)) & 1) {
+                if ((mask >> (sc.facets[i][j] - 1)) & 1) { // Requires the vertices to be 1 to n
                     facet.push_back(sc.facets[i][j]);
                 }
             }
@@ -207,68 +207,111 @@ std::vector<int> sigma(SimplicialComplex sc) {
         return (int) bc;
     };
 
-    std::vector<int> sigma = betti(sc);
+    std::vector<int> b = betti(sc);
+    std::vector<float> sigma(b.size());
+    for (int i = 0; i < sigma.size(); i++) {
+        sigma[i] = (float) b[i];
+    }
     for (int i = 0; i < (1 << sc.n) - 1; i++) {
         SimplicialComplex intersection = intersect(sc, i);
         std::vector<int> b = betti(intersection);
         int bc = binomialCoefficient(sc.n, intersection.n);
         for (int j = 0; j < sigma.size(); j++) {
-            sigma[j] += (j < b.size() ? b[j] : 0) / bc;
+            sigma[j] += (float) (j < b.size() ? b[j] : 0) / bc;
         }
     }
     return sigma;
 }
 
-std::vector<int> mu(SimplicialComplex sc) {
+std::vector<float> mu(SimplicialComplex sc) {
 
+    auto link = [](SimplicialComplex sc, int x) {
+        int idx = 0;
+        std::vector<int> map(sc.n);
+        for (int j = 0; j < map.size(); j++) {
+            map[j] = 0;
+        }
+        SimplicialComplex link;
+        for (int i = 0; i < sc.facets.size(); i++) {
+            bool xContained = false;
+            for (int j = 0; j < sc.facets[i].size() && !xContained; j++) {
+                if (sc.facets[i][j] == x) {
+                    xContained = true;
+                }
+            }
+            if (xContained) {
+                std::vector<int> facet;
+                for (int j = 0; j < sc.facets[i].size(); j++) {
+                    if (sc.facets[i][j] != x) {
+                        if (map[sc.facets[i][j] - 1] == 0) {
+                            idx++;
+                            map[sc.facets[i][j] - 1] = idx;
+                        }
+                        facet.push_back(map[sc.facets[i][j] - 1]);
+                    }
+                }
+                if (facet.size() > 0) {
+                    link.facets.push_back(facet);
+                }
+            }
+        }
+        link.n = idx;
+        return link;
+    };
 
-
-    return {1, 2, 3};
+    std::vector<int> b = betti(sc);
+    std::vector<float> mu(b.size());
+    for (int i = 0; i < mu.size(); i++) {
+        mu[i] = 0;
+    }
+    for (int i = 1; i <= sc.n; i++) {
+        SimplicialComplex l = link(sc, i);
+        std::vector<float> s = sigma(l);
+        for (int j = 0; j < mu.size(); j++) {
+            mu[j] += (j < s.size() ? s[j] : 0) / (1 + l.n);
+        }
+    }
+    return mu;
 }
 
 int main(int argc, char** argv) {
     SimplicialComplex sc;
+    std::istream is(std::cin.rdbuf());
+    std::ifstream file;
     if (argc == 2) {
-        std::ifstream file(argv[1]);
-        file >> sc.n;
-        std::string line;
-        std::getline(file, line);
-        while (std::getline(file, line)) {
-            std::istringstream iss(line);
-            std::vector<int> facet;
-            int x;
-            while (iss >> x) {
-                facet.push_back(x);
-            }
-            sc.facets.push_back(facet);
-        }
+        file = std::ifstream(argv[1]);
+        is.rdbuf(file.rdbuf());
     } else {
-        std::cout << "n:" << std::endl;
-        std::cin >> sc.n;
-        std::string line;
-        std::getline(std::cin, line);
-        std::cout << "facets (vertices separated by spaces, stop with empty line):" << std::endl;
-        while (std::getline(std::cin, line)) {
-            if (line.empty()) {
-                break;
-            }
-            std::istringstream iss(line);
-            std::vector<int> facet;
-            int x;
-            while (iss >> x) {
-                facet.push_back(x);
-            }
-            sc.facets.push_back(facet);
+        std::cout << "Please enter the vertex indices of the facets of a simplicial complex" << std::endl;
+        std::cout << "separated by spaces, stop with empty line:" << std::endl;
+    }
+    sc.n = 0;
+    std::string line;
+    while (std::getline(is, line)) {
+        if (line.empty()) {
+            break;
         }
+        std::istringstream iss(line);
+        std::vector<int> facet;
+        int x;
+        while (iss >> x) {
+            if (x > sc.n) {
+                sc.n = x;
+            }
+            facet.push_back(x);
+        }
+        sc.facets.push_back(facet);
     }
-    
-    std::vector<int> b = betti(sc);
-    std::vector<int> s = sigma(sc);
-    std::vector<int> u = mu(sc);
 
-    std::cout << "   | Betti | sigma |    mu" << std::endl << "---+-------+-------+-------" << std::endl;
-    for (int i = 0; i < b.size(); i++) {
-        std::cout << std::setw(2) << i << " | " << std::setw(5) << b[i] << " | " << std::setw(5) << s[i] << " | " << std::setw(5) << u[i] << std::endl;
+    std::vector<int> b = betti(sc);
+    std::vector<float> s = sigma(sc);
+    std::vector<float> u = mu(sc);
+    
+    std::cout << "   |    Betti |    sigma |       mu" << std::endl << "---+----------+----------+----------" << std::endl;
+    std::cout << " 0 | " << std::setw(8) << b[0] << " | " << std::setw(8) << s[0] << " |        -" << std::endl;
+    for (int i = 1; i < b.size(); i++) {
+        std::cout << std::setw(2) << i << " | " << std::setw(8) << b[i] << " | " << std::setw(8) << s[i] << " | " << std::setw(8) << u[i - 1] << std::endl;
     }
+    std::cout << std::setw(2) << b.size() << " |        0 |        0 | " << std::setw(8) << u[b.size() - 1] << std::endl;
     return 0;
 }
