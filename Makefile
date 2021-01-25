@@ -1,4 +1,4 @@
-complex?=complexes/example.txt # sonst make complex=complexes/complex.txt
+complex?=complexes/coloring.txt # sonst make complex=complexes/complex.txt
 
 run: build/Simp
 	./build/Simp $(complex)

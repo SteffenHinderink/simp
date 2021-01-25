@@ -38,88 +38,187 @@ bool permuted(std::vector<int> a, std::vector<int> b) {
 };
 
 /**
+ * Calculates the signum of a permutation between two vectors.
+ * The vectors need to have the same values and do not need to be sorted.
+ * @param a First vector.
+ * @param b Second vector with the same possibly permutated values as the first vector.
+ * @return Signum of the permutation.
+ */
+int signum(std::vector<int> a, std::vector<int> b) {
+    int n = a.size();
+    // Get permutation in relation to ascending sequence
+    std::vector<int> pi(n);
+    for (int i = 0; i < n; i++) {
+        bool found = false;
+        for (int j = 0; j < n && !found; j++) {
+            if (b[j] == a[i]) {
+                pi[j] = i;
+                found = true;
+            }
+        }
+    }
+    // sgn(pi) = prod_1<=i<j<=n (pi(j) - pi(i)) / (j - i)
+    float signum = 1;
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = i + 1; j < n; j++) {
+            signum *= (float) (pi[j] - pi[i]) / (j - i);
+        }
+    }
+    return (int) signum;
+};
+
+/**
+ * Calculates the rank of a matrix.
+ * @param m Matrix of which the rank is calculated.
+ * @return Rank of the matrix.
+ */
+int rank(std::vector<std::vector<int>> m) {
+    // Change type to float
+    std::vector<std::vector<float>> a(m.size());
+    for (int i = 0; i < a.size(); i++) {
+        a[i] = std::vector<float>(m[i].size());
+        for (int j = 0; j < a[i].size(); j++) {
+            a[i][j] = m[i][j];
+        }
+    }
+
+    int rank = 0;
+    for (int col = 0; col < a[0].size(); col++) {
+        int k = -1;
+        for (int row = 0; row < a.size(); row++) {
+            if (a[row][col] != 0) {
+                if (k < 0) {
+                    // Scale first non zero row (row k) in column to have 1 in that column
+                    k = row;
+                    float value = a[k][col];
+                    for (int i = col; i < a[k].size(); i++) {
+                        a[k][i] /= value;
+                    }
+                    // A non zero row increases the rank
+                    rank++;
+                } else {
+                    // Subtract multiples of row k from any further non zero rows to have 0 in that column
+                    float value = a[row][col];
+                    for (int i = col; i < a[row].size(); i++) {
+                        a[row][i] -= value * a[k][i];
+                    }
+                }
+            }
+        }
+        // Delete row k as that index cannot increase the rank anymore
+        if (k >= 0) {
+            a.erase(a.begin() + k);
+        }
+    }
+    return rank;
+};
+
+/**
+ * Intersects a simplicial complex with a subset of its vertices.
+ * @param sc Simplicial complex that is intersected.
+ * @param mask Vertices with which the simplicial complex is intersected.
+ *             The vertices are given as a number.
+ *             The lowest bits of its binary representation stand for the vertices.
+ *             1 means that the subset contains the vertex and 0 not.
+ * @return Intersection of the simplicial complex with the subset of vertices.
+ */
+SimplicialComplex intersect(SimplicialComplex sc, int mask) {
+    SimplicialComplex intersection;
+    // Get number of vertices of the intersection
+    intersection.n = 0;
+    for (int i = 0; i < sc.n; i++) {
+        if ((mask >> i) & 1) {
+            intersection.n++;
+        }
+    }
+    // Get facets of the intersection from the facets of the input
+    for (int i = 0; i < sc.facets.size(); i++) {
+        std::vector<int> facet;
+        for (int j = 0; j < sc.facets[i].size(); j++) {
+            if ((mask >> (sc.facets[i][j] - 1)) & 1) { // Requires the vertices of the input to be 1 to n
+                facet.push_back(sc.facets[i][j]);
+            }
+        }
+        if (facet.size() > 0) {
+            bool newFacet = true;
+            for (int j = 0; j < intersection.facets.size() && newFacet; j++) {
+                if (permuted(facet, intersection.facets[j])) {
+                    newFacet = false;
+                }
+            }
+            if (newFacet) {
+                intersection.facets.push_back(facet);
+            }
+        }
+    }
+    return intersection;
+};
+
+/**
+ * Calculates the binomial coefficient (n choose k).
+ * It depicts the number of subsets with size k of a set with size n.
+ * @param n Number of elements in the set.
+ * @param k Number of elements in the subsets.
+ * @return Binomial coefficient.
+ */
+int binomialCoefficient(int n, int k) {
+    // Multiplicative formula: n choose k = prod_i=1^k (n + 1 - i) / i
+    float bc = 1;
+    for (int i = 1; i <= k; i++) {
+        bc *= (float) (n + 1 - i) / i;
+    }
+    return (int) bc;
+};
+
+/**
+ * Returns the link of a vertex in a simplicial complex.
+ * @param sc Simplicial complex in which the link exists.
+ * @param x Vertex of which the link is returned.
+ * @return Link of the vertex.
+ */
+SimplicialComplex link(SimplicialComplex sc, int x) {
+    int idx = 0;
+    // Map from vertex indices in the simplicial complex -1 to vertex indices in the link
+    std::vector<int> map(sc.n);
+    for (int j = 0; j < map.size(); j++) {
+        map[j] = 0;
+    }
+    SimplicialComplex link;
+    // Get facets of the link from the facets of the input
+    for (int i = 0; i < sc.facets.size(); i++) {
+        bool xContained = false;
+        for (int j = 0; j < sc.facets[i].size() && !xContained; j++) {
+            if (sc.facets[i][j] == x) {
+                xContained = true;
+            }
+        }
+        if (xContained) {
+            std::vector<int> facet;
+            for (int j = 0; j < sc.facets[i].size(); j++) {
+                if (sc.facets[i][j] != x) {
+                    if (map[sc.facets[i][j] - 1] == 0) {
+                        // Create new map entry
+                        idx++;
+                        map[sc.facets[i][j] - 1] = idx;
+                    }
+                    facet.push_back(map[sc.facets[i][j] - 1]);
+                }
+            }
+            if (facet.size() > 0) {
+                link.facets.push_back(facet);
+            }
+        }
+    }
+    link.n = idx;
+    return link;
+};
+
+/**
  * Returns the Betti numbers of a simplicial complex.
  * @param sc Simplicial complex of which the Betti numbers are calculated.
  * @return Betti numbers.
  */
 std::vector<int> betti(SimplicialComplex sc) {
-
-    /**
-     * Calculates the signum of a permutation between two vectors.
-     * The vectors need to have the same values and do not need to be sorted.
-     * @param a First vector.
-     * @param b Second vector with the same possibly permutated values as the first vector.
-     * @return Signum of the permutation.
-     */
-    auto signum = [](std::vector<int> a, std::vector<int> b) {
-        int n = a.size();
-        // Get permutation in relation to ascending sequence
-        std::vector<int> pi(n);
-        for (int i = 0; i < n; i++) {
-            bool found = false;
-            for (int j = 0; j < n && !found; j++) {
-                if (b[j] == a[i]) {
-                    pi[j] = i;
-                    found = true;
-                }
-            }
-        }
-        // sgn(pi) = prod_1<=i<j<=n (pi(j) - pi(i)) / (j - i)
-        float signum = 1;
-        for (int i = 0; i < n - 1; i++) {
-            for (int j = i + 1; j < n; j++) {
-                signum *= (float) (pi[j] - pi[i]) / (j - i);
-            }
-        }
-        return (int) signum;
-    };
-
-    /**
-     * Calculates the rank of a matrix.
-     * @param m Matrix of which the rank is calculated.
-     * @return Rank of the matrix.
-     */
-    auto rank = [](std::vector<std::vector<int>> m) {
-        // Change type to float
-        std::vector<std::vector<float>> a(m.size());
-        for (int i = 0; i < a.size(); i++) {
-            a[i] = std::vector<float>(m[i].size());
-            for (int j = 0; j < a[i].size(); j++) {
-                a[i][j] = m[i][j];
-            }
-        }
-
-        int rank = 0;
-        for (int col = 0; col < a[0].size(); col++) {
-            int k = -1;
-            for (int row = 0; row < a.size(); row++) {
-                if (a[row][col] != 0) {
-                    if (k < 0) {
-                        // Scale first non zero row (row k) in column to have 1 in that column
-                        k = row;
-                        float value = a[k][col];
-                        for (int i = col; i < a[k].size(); i++) {
-                            a[k][i] /= value;
-                        }
-                        // A non zero row increases the rank
-                        rank++;
-                    } else {
-                        // Subtract multiples of row k from any further non zero rows to have 0 in that column
-                        float value = a[row][col];
-                        for (int i = col; i < a[row].size(); i++) {
-                            a[row][i] -= value * a[k][i];
-                        }
-                    }
-                }
-            }
-            // Delete row k as that index cannot increase the rank anymore
-            if (k >= 0) {
-                a.erase(a.begin() + k);
-            }
-        }
-        return rank;
-    };
-
     // Get maximum facet dimension
     int maxFacetDim = 0;
     for (int i = 0; i < sc.facets.size(); i++) {
@@ -238,64 +337,6 @@ std::vector<int> betti(SimplicialComplex sc) {
  * @return Sigma numbers.
  */
 std::vector<float> sigma(SimplicialComplex sc) {
-
-    /**
-     * Intersects a simplicial complex with a subset of its vertices.
-     * @param sc Simplicial complex that is intersected.
-     * @param mask Vertices with which the simplicial complex is intersected.
-     *             The vertices are given as a number.
-     *             The lowest bits of its binary representation stand for the vertices.
-     *             1 means that the subset contains the vertex and 0 not.
-     * @return Intersection of the simplicial complex with the subset of vertices.
-     */
-    auto intersect = [](SimplicialComplex sc, int mask) {
-        SimplicialComplex intersection;
-        // Get number of vertices of the intersection
-        intersection.n = 0;
-        for (int i = 0; i < sc.n; i++) {
-            if ((mask >> i) & 1) {
-                intersection.n++;
-            }
-        }
-        // Get facets of the intersection from the facets of the input
-        for (int i = 0; i < sc.facets.size(); i++) {
-            std::vector<int> facet;
-            for (int j = 0; j < sc.facets[i].size(); j++) {
-                if ((mask >> (sc.facets[i][j] - 1)) & 1) { // Requires the vertices of the input to be 1 to n
-                    facet.push_back(sc.facets[i][j]);
-                }
-            }
-            if (facet.size() > 0) {
-                bool newFacet = true;
-                for (int j = 0; j < intersection.facets.size() && newFacet; j++) {
-                    if (permuted(facet, intersection.facets[j])) {
-                        newFacet = false;
-                    }
-                }
-                if (newFacet) {
-                    intersection.facets.push_back(facet);
-                }
-            }
-        }
-        return intersection;
-    };
-
-    /**
-     * Calculates the binomial coefficient (n choose k).
-     * It depicts the number of subsets with size k of a set with size n.
-     * @param n Number of elements in the set.
-     * @param k Number of elements in the subsets.
-     * @return Binomial coefficient.
-     */
-    auto binomialCoefficient = [](int n, int k) {
-        // Multiplicative formula: n choose k = prod_i=1^k (n + 1 - i) / i
-        float bc = 1;
-        for (int i = 1; i <= k; i++) {
-            bc *= (float) (n + 1 - i) / i;
-        }
-        return (int) bc;
-    };
-
     // sigma_i(S) = sum_(W subset of V(S)) b_i(intersection of S with W) / (#V choose #W)
     std::vector<int> b = betti(sc);
     std::vector<float> sigma(b.size());
@@ -320,50 +361,6 @@ std::vector<float> sigma(SimplicialComplex sc) {
  * @return Mu numbers.
  */
 std::vector<float> mu(SimplicialComplex sc) {
-
-    /**
-     * Returns the link of a vertex in a simplicial complex.
-     * @param sc Simplicial complex in which the link exists.
-     * @param x Vertex of which the link is returned.
-     * @return Link of the vertex.
-     */
-    auto link = [](SimplicialComplex sc, int x) {
-        int idx = 0;
-        // Map from vertex indices in the simplicial complex -1 to vertex indices in the link
-        std::vector<int> map(sc.n);
-        for (int j = 0; j < map.size(); j++) {
-            map[j] = 0;
-        }
-        SimplicialComplex link;
-        // Get facets of the link from the facets of the input
-        for (int i = 0; i < sc.facets.size(); i++) {
-            bool xContained = false;
-            for (int j = 0; j < sc.facets[i].size() && !xContained; j++) {
-                if (sc.facets[i][j] == x) {
-                    xContained = true;
-                }
-            }
-            if (xContained) {
-                std::vector<int> facet;
-                for (int j = 0; j < sc.facets[i].size(); j++) {
-                    if (sc.facets[i][j] != x) {
-                        if (map[sc.facets[i][j] - 1] == 0) {
-                            // Create new map entry
-                            idx++;
-                            map[sc.facets[i][j] - 1] = idx;
-                        }
-                        facet.push_back(map[sc.facets[i][j] - 1]);
-                    }
-                }
-                if (facet.size() > 0) {
-                    link.facets.push_back(facet);
-                }
-            }
-        }
-        link.n = idx;
-        return link;
-    };
-
     // mu_i(S) = sum_(x in V(S)) sigma_i-1(link(x)) / (1 + #V(link(x)))
     std::vector<int> b = betti(sc);
     std::vector<float> mu(b.size());
@@ -388,6 +385,15 @@ std::vector<float> mu(SimplicialComplex sc) {
 std::vector<float> sigmaColored(SimplicialComplex sc) {
 
     // TODO
+
+    int numColors = 0;
+    for (int i = 0; i < sc.coloring.size(); i++) {
+        if (sc.coloring[i] > numColors) {
+            numColors = sc.coloring[i];
+        }
+    }
+
+    std::cout << numColors << std::endl;
 
     return {21, 69};
 }
@@ -448,18 +454,6 @@ int main(int argc, char** argv) {
             facet.push_back(x);
         }
         sc.facets.push_back(facet);
-    }
-
-    std::cout << "n: " << sc.n << std::endl << "coloring:" << std::endl;
-    for (int i = 0; i < sc.coloring.size(); i++) {
-        std::cout << sc.coloring[i] << " ";
-    }
-    std::cout << std::endl << "facets:" << std::endl;
-    for (int i = 0; i < sc.facets.size(); i++) {
-        for (int j = 0; j < sc.facets[i].size(); j++) {
-            std::cout << sc.facets[i][j] << " ";
-        }
-        std::cout << std::endl;
     }
 
     // Calculate Betti, sigma, mu, sigma' and tau numbers
