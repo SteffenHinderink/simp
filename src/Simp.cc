@@ -73,7 +73,7 @@ std::vector<int> betti(SimplicialComplex sc) {
     };
 
     /**
-     * Calculated the rank of a matrix.
+     * Calculates the rank of a matrix.
      * @param m Matrix of which the rank is calculated.
      * @return Rank of the matrix.
      */
@@ -150,10 +150,10 @@ std::vector<int> betti(SimplicialComplex sc) {
      *                          |             |                           |             |
      *                          V             V                           V             V
      * Betti number           b_m-1         b_m-2          ...           b_1           b_o
-     *                               \                                             /
-     *                                \--------------------\ /--------------------/
-     *                                                      V
-     *                                Calculate image and kernel dimensions in loop
+     *                       \                                                     /
+     *                        \------------------------\ /------------------------/
+     *                                                  V
+     *                            Calculate image and kernel dimensions in loop
      */
     int preImgDim = 0;
     for (int idx = maxFacetDim - 1; idx > 0; idx--) {
@@ -259,7 +259,7 @@ std::vector<float> sigma(SimplicialComplex sc) {
         for (int i = 0; i < sc.facets.size(); i++) {
             std::vector<int> facet;
             for (int j = 0; j < sc.facets[i].size(); j++) {
-                if ((mask >> (sc.facets[i][j] - 1)) & 1) { // Requires the vertices of the input to be 1 to n!
+                if ((mask >> (sc.facets[i][j] - 1)) & 1) { // Requires the vertices of the input to be 1 to n
                     facet.push_back(sc.facets[i][j]);
                 }
             }
@@ -380,7 +380,7 @@ std::vector<float> mu(SimplicialComplex sc) {
 
 /**
  * Reads a simplicial complex from a file or the command line,
- * calculated the Betti, sigma and mu numbers of that simplicial complex and outputs them.
+ * calculates the Betti, sigma and mu numbers of that simplicial complex and outputs them.
  * @param argc Number of command line arguments.
  * @param argv Command line arguments.
  *             If a second argument is given, it is the file containing a simplicial complex.
