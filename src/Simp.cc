@@ -337,7 +337,7 @@ std::vector<int> betti(SimplicialComplex sc) {
  * @return Sigma numbers.
  */
 std::vector<float> sigma(SimplicialComplex sc) {
-    // sigma_i(S) = sum_(W subset of V(S)) b_i(intersection of S with W) / (#V choose #W)
+    // sigma_i(S) = sum_(W subset of V(S)) b_i(intersection of S with W) / (#V(S) choose #W)
     std::vector<int> b = betti(sc);
     std::vector<float> sigma(b.size());
     for (int i = 0; i < sigma.size(); i++) {
@@ -383,19 +383,40 @@ std::vector<float> mu(SimplicialComplex sc) {
  * @return Sigma' numbers.
  */
 std::vector<float> sigmaColored(SimplicialComplex sc) {
-
-    // TODO
-
-    int numColors = 0;
+    // sigma'_i(S) = sum_(s subset of C(S)) b_i(intersection of S with C^-1(s)) / (#C(S) choose #s)
+    std::vector<int> b = betti(sc);
+    std::vector<float> sigma(b.size());
+    for (int i = 0; i < sigma.size(); i++) {
+        sigma[i] = (float) b[i];
+    }
+    int numC = 0;
     for (int i = 0; i < sc.coloring.size(); i++) {
-        if (sc.coloring[i] > numColors) {
-            numColors = sc.coloring[i];
+        if (sc.coloring[i] > numC) {
+            numC = sc.coloring[i];
         }
     }
-
-    std::cout << numColors << std::endl;
-
-    return {21, 69};
+    for (int s = 0; s < (1 << numC) - 1; s++) {
+        int mask = 0;
+        int numS = 0;
+        for (int i = 0; i < numC; i++) {
+            if ((s >> i) & 1) {
+                // Add vertices of this color to mask
+                for (int j = 0; j < sc.n; j++) {
+                    if (sc.coloring[j] == i + 1) {  // Requires the vertices of the input to be 1 to n
+                        mask |= (1 << j);
+                    }
+                }
+                numS++;
+            }
+        }
+        SimplicialComplex intersection = intersect(sc, mask);
+        std::vector<int> b = betti(intersection);
+        int bc = binomialCoefficient(numC, numS);
+        for (int j = 0; j < sigma.size(); j++) {
+            sigma[j] += (float) (j < b.size() ? b[j] : 0) / bc;
+        }
+    }
+    return sigma;
 }
 
 /**
