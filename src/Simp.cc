@@ -115,6 +115,8 @@ int rank(std::vector<std::vector<int>> m) {
 
 /**
  * Intersects a simplicial complex with a subset of its vertices.
+ * The vertices of the intersection are not guaranteed to be 1 to n.
+ * The coloring of the vertices of the intersection is defective.
  * @param sc Simplicial complex that is intersected.
  * @param mask Vertices with which the simplicial complex is intersected.
  *             The vertices are given as a number.
@@ -171,17 +173,17 @@ int binomialCoefficient(int n, int k) {
 };
 
 /**
- * Returns the link of a vertex in a simplicial complex.
- * @param sc Simplicial complex in which the link exists.
+ * Returns the link of a vertex in a colored simplicial complex.
+ * @param sc Colored simplicial complex in which the link exists.
  * @param x Vertex of which the link is returned.
  * @return Link of the vertex.
  */
 SimplicialComplex link(SimplicialComplex sc, int x) {
-    int idx = 0;
     // Map from vertex indices in the simplicial complex -1 to vertex indices in the link
+    int idx = 0;
     std::vector<int> map(sc.n);
-    for (int j = 0; j < map.size(); j++) {
-        map[j] = 0;
+    for (int i = 0; i < map.size(); i++) {
+        map[i] = 0;
     }
     SimplicialComplex link;
     // Get facets of the link from the facets of the input
@@ -210,6 +212,27 @@ SimplicialComplex link(SimplicialComplex sc, int x) {
         }
     }
     link.n = idx;
+
+    // Get the coloring of the link respecting the mapped vertices
+    int colorIdx = 0;
+    std::vector<int> colorMap(sc.n);
+    for (int i = 0; i < colorMap.size(); i++) {
+        colorMap[i] = 0;
+    }
+    for (int i = 0; i < link.n; i++) {
+        int color;
+        for (int j = 0; j < sc.n; j++) {
+            if (map[j] == i + 1) {
+                if (colorMap[sc.coloring[j] - 1] == 0) {
+                    colorIdx++;
+                    colorMap[sc.coloring[j] - 1] = colorIdx;
+                }
+                link.coloring.push_back(colorMap[sc.coloring[j] - 1]);
+                break;
+            }
+        }
+    }
+    
     return link;
 };
 
@@ -383,7 +406,7 @@ std::vector<float> mu(SimplicialComplex sc) {
  * @return Sigma' numbers.
  */
 std::vector<float> sigmaColored(SimplicialComplex sc) {
-    // sigma'_i(S) = sum_(s subset of C(S)) b_i(intersection of S with C^-1(s)) / (#C(S) choose #s)
+    // sigma'_i(S) = sum_(s subset of C(V(S))) b_i(intersection of S with C^-1(s)) / (#C(V(S)) choose #s)
     std::vector<int> b = betti(sc);
     std::vector<float> sigma(b.size());
     for (int i = 0; i < sigma.size(); i++) {
@@ -426,10 +449,26 @@ std::vector<float> sigmaColored(SimplicialComplex sc) {
  * @return Tau numbers.
  */
 std::vector<float> tau(SimplicialComplex sc) {
-
-    // TODO
-
-    return {1337, 6364};
+    // tau_i(S) = sum_(x in V(S)) sigma'_i-1(link(x)) / (1 + #C(V(link(x))))
+    std::vector<int> b = betti(sc);
+    std::vector<float> tau(b.size());
+    for (int i = 0; i < tau.size(); i++) {
+        tau[i] = 0;
+    }
+    for (int i = 1; i <= sc.n; i++) {
+        SimplicialComplex l = link(sc, i);
+        std::vector<float> s = sigmaColored(l);
+        int numC = 0;
+        for (int j = 0; j < l.coloring.size(); j++) {
+            if (l.coloring[j] > numC) {
+                numC = l.coloring[j];
+            }
+        }
+        for (int j = 0; j < tau.size(); j++) {
+            tau[j] += (j < s.size() ? s[j] : 0) / (1 + numC);
+        }
+    }
+    return tau;
 }
 
 /**
