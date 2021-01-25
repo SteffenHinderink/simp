@@ -8,6 +8,8 @@
 struct SimplicialComplex {
     /// Number of vertices.
     int n;
+    /// Coloring of the vertices.
+    std::vector<int> coloring;
     /// Facets of the simplicial complex given as vertex indices.
     std::vector<std::vector<int>> facets;
 };
@@ -379,8 +381,33 @@ std::vector<float> mu(SimplicialComplex sc) {
 }
 
 /**
- * Reads a simplicial complex from a file or the command line,
- * calculates the Betti, sigma and mu numbers of that simplicial complex and outputs them.
+ * Returns the sigma' numbers of a colored simplicial complex.
+ * @param sc Colored simplicial complex of which the sigma' numbers are calculated.
+ * @return Sigma' numbers.
+ */
+std::vector<float> sigmaColored(SimplicialComplex sc) {
+
+    // TODO
+
+    return {21, 69};
+}
+
+/**
+ * Returns the tau numbers of a colored simplicial complex.
+ * Because tau_0 is omitted, the indices of the numbers are shifted by 1.
+ * @param sc Colored simplicial complex of which the tau numbers are calculated.
+ * @return Tau numbers.
+ */
+std::vector<float> tau(SimplicialComplex sc) {
+
+    // TODO
+
+    return {1337, 6364};
+}
+
+/**
+ * Reads a colored simplicial complex from a file or the command line,
+ * calculates the Betti, sigma, mu, sigma' and tau numbers of that simplicial complex and outputs them.
  * @param argc Number of command line arguments.
  * @param argv Command line arguments.
  *             If a second argument is given, it is the file containing a simplicial complex.
@@ -392,43 +419,66 @@ int main(int argc, char** argv) {
     std::istream is(std::cin.rdbuf());
     std::ifstream file;
     if (argc == 2) {
-        // Read from file
         file = std::ifstream(argv[1]);
         is.rdbuf(file.rdbuf());
     } else {
-        // Read from command line
-        std::cout << "Please enter the vertex indices of the facets of a simplicial complex" << std::endl;
-        std::cout << "separated by spaces, stop with empty line:" << std::endl;
+        std::cout << "Please enter the colors of the vertices of a simplicial complex" << std::endl;
+        std::cout << "separated by spaces:" << std::endl;
     }
     sc.n = 0;
     std::string line;
+    std::getline(is, line);
+    std::istringstream iss(line);
+    int x;
+    while (iss >> x) {
+        sc.coloring.push_back(x);
+        sc.n++;
+    }
+    if (argc != 2) {
+        std::cout << "Please enter the vertex indices of the facets of the simplicial complex" << std::endl;
+        std::cout << "separated by spaces, stop with empty line:" << std::endl;
+    }
     while (std::getline(is, line)) {
         if (line.empty()) {
             break;
         }
-        std::istringstream iss(line);
+        iss = std::istringstream(line);
         std::vector<int> facet;
-        int x;
         while (iss >> x) {
-            if (x > sc.n) {
-                sc.n = x;
-            }
             facet.push_back(x);
         }
         sc.facets.push_back(facet);
     }
 
-    // Calculate Betti, sigma and mu numbers
+    std::cout << "n: " << sc.n << std::endl << "coloring:" << std::endl;
+    for (int i = 0; i < sc.coloring.size(); i++) {
+        std::cout << sc.coloring[i] << " ";
+    }
+    std::cout << std::endl << "facets:" << std::endl;
+    for (int i = 0; i < sc.facets.size(); i++) {
+        for (int j = 0; j < sc.facets[i].size(); j++) {
+            std::cout << sc.facets[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    // Calculate Betti, sigma, mu, sigma' and tau numbers
     std::vector<int> b = betti(sc);
     std::vector<float> s = sigma(sc);
     std::vector<float> u = mu(sc);
+    std::vector<float> swift = sigmaColored(sc);
+    std::vector<float> taylor = tau(sc);
     
     // Output results
-    std::cout << "   |    Betti |    sigma |       mu" << std::endl << "---+----------+----------+----------" << std::endl;
-    std::cout << " 0 | " << std::setw(8) << b[0] << " | " << std::setw(8) << s[0] << " |        -" << std::endl;
+    std::cout << "   |    Betti |    sigma |       mu |   sigma' |      tau " << std::endl
+              << "---+----------+----------+----------+----------+----------" << std::endl;
+    std::cout << " 0 | " << std::setw(8) << b[0] << " | " << std::setw(8) << s[0] << " |        - | "
+              << std::setw(8) << swift[0] << " |        -" << std::endl;
     for (int i = 1; i < b.size(); i++) {
-        std::cout << std::setw(2) << i << " | " << std::setw(8) << b[i] << " | " << std::setw(8) << s[i] << " | " << std::setw(8) << u[i - 1] << std::endl;
+        std::cout << std::setw(2) << i << " | " << std::setw(8) << b[i] << " | " << std::setw(8) << s[i] << " | " << std::setw(8) << u[i - 1]
+                  << " | " << std::setw(8) << swift[i] << " | " << std::setw(8) << taylor[i - 1] << std::endl;
     }
-    std::cout << std::setw(2) << b.size() << " |        0 |        0 | " << std::setw(8) << u[b.size() - 1] << std::endl;
+    std::cout << std::setw(2) << b.size() << " |        0 |        0 | " << std::setw(8) << u[b.size() - 1]
+              << " |        0 | " << std::setw(8) << taylor[b.size() - 1] << std::endl;
     return 0;
 }
