@@ -379,22 +379,22 @@ std::vector<float> sigma(SimplicialComplex sc) {
 
 /**
  * Returns the mu numbers of a simplicial complex.
- * Because mu_0 is omitted, the indices of the numbers are shifted by 1.
  * @param sc Simplicial complex of which the mu numbers are calculated.
  * @return Mu numbers.
  */
 std::vector<float> mu(SimplicialComplex sc) {
     // mu_i(S) = sum_(x in V(S)) sigma_i-1(link(x)) / (1 + #V(link(x)))
     std::vector<int> b = betti(sc);
-    std::vector<float> mu(b.size());
+    std::vector<float> mu(b.size() + 1);
     for (int i = 0; i < mu.size(); i++) {
         mu[i] = 0;
     }
     for (int i = 1; i <= sc.n; i++) {
         SimplicialComplex l = link(sc, i);
         std::vector<float> s = sigma(l);
-        for (int j = 0; j < mu.size(); j++) {
-            mu[j] += (j < s.size() ? s[j] : 0) / (1 + l.n);
+        mu[0] += 1.0 / (1 + l.n);
+        for (int j = 1; j < mu.size(); j++) {
+            mu[j] += (j - 1 < s.size() ? s[j - 1] : 0) / (1 + l.n);
         }
     }
     return mu;
@@ -444,14 +444,13 @@ std::vector<float> sigmaColored(SimplicialComplex sc) {
 
 /**
  * Returns the tau numbers of a colored simplicial complex.
- * Because tau_0 is omitted, the indices of the numbers are shifted by 1.
  * @param sc Colored simplicial complex of which the tau numbers are calculated.
  * @return Tau numbers.
  */
 std::vector<float> tau(SimplicialComplex sc) {
     // tau_i(S) = sum_(x in V(S)) sigma'_i-1(link(x)) / (1 + #C(V(link(x))))
     std::vector<int> b = betti(sc);
-    std::vector<float> tau(b.size());
+    std::vector<float> tau(b.size() + 1);
     for (int i = 0; i < tau.size(); i++) {
         tau[i] = 0;
     }
@@ -464,8 +463,9 @@ std::vector<float> tau(SimplicialComplex sc) {
                 numC = l.coloring[j];
             }
         }
-        for (int j = 0; j < tau.size(); j++) {
-            tau[j] += (j < s.size() ? s[j] : 0) / (1 + numC);
+        tau[0] += 1.0 / (1 + numC);
+        for (int j = 1; j < tau.size(); j++) {
+            tau[j] += (j - 1 < s.size() ? s[j - 1] : 0) / (1 + numC);
         }
     }
     return tau;
@@ -526,13 +526,11 @@ int main(int argc, char** argv) {
     // Output results
     std::cout << "   |    Betti |    sigma |       mu |   sigma' |      tau " << std::endl
               << "---+----------+----------+----------+----------+----------" << std::endl;
-    std::cout << " 0 | " << std::setw(8) << b[0] << " | " << std::setw(8) << s[0] << " |        - | "
-              << std::setw(8) << swift[0] << " |        -" << std::endl;
-    for (int i = 1; i < b.size(); i++) {
-        std::cout << std::setw(2) << i << " | " << std::setw(8) << b[i] << " | " << std::setw(8) << s[i] << " | " << std::setw(8) << u[i - 1]
-                  << " | " << std::setw(8) << swift[i] << " | " << std::setw(8) << taylor[i - 1] << std::endl;
+    for (int i = 0; i < b.size(); i++) {
+        std::cout << std::setw(2) << i << " | " << std::setw(8) << b[i] << " | " << std::setw(8) << s[i] << " | " << std::setw(8) << u[i]
+                  << " | " << std::setw(8) << swift[i] << " | " << std::setw(8) << taylor[i] << std::endl;
     }
-    std::cout << std::setw(2) << b.size() << " |        0 |        0 | " << std::setw(8) << u[b.size() - 1]
-              << " |        0 | " << std::setw(8) << taylor[b.size() - 1] << std::endl;
+    std::cout << std::setw(2) << b.size() << " |        0 |        0 | " << std::setw(8) << u[b.size()]
+              << " |        0 | " << std::setw(8) << taylor[b.size()] << std::endl;
     return 0;
 }
