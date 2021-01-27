@@ -273,7 +273,7 @@ std::vector<int> betti(SimplicialComplex sc) {
      * dim(ker)                 |\---- x      |\---- x     ...  -- x      |\---- x      |\--- n-1
      *                          |             |                           |             |
      *                          V             V                           V             V
-     * Betti number           b_m-1         b_m-2          ...           b_1           b_o
+     * Betti number           b_m-1         b_m-2          ...           b_1           b_0
      *                       \                                                     /
      *                        \------------------------\ /------------------------/
      *                                                  V
@@ -371,7 +371,7 @@ std::vector<float> sigma(SimplicialComplex sc) {
         std::vector<int> b = betti(intersection);
         int bc = binomialCoefficient(sc.n, intersection.n);
         for (int j = 0; j < sigma.size(); j++) {
-            sigma[j] += (float) (j < b.size() ? b[j] : 0) / bc;
+            sigma[j] += j < b.size() ? (float) b[j] / bc : 0;
         }
     }
     return sigma;
@@ -394,7 +394,7 @@ std::vector<float> mu(SimplicialComplex sc) {
         std::vector<float> s = sigma(l);
         mu[0] += 1.0 / (1 + l.n);
         for (int j = 1; j < mu.size(); j++) {
-            mu[j] += (j - 1 < s.size() ? s[j - 1] : 0) / (1 + l.n);
+            mu[j] += j - 1 < s.size() ? s[j - 1] / (1 + l.n) : 0;
         }
     }
     return mu;
@@ -436,7 +436,7 @@ std::vector<float> sigmaColored(SimplicialComplex sc) {
         std::vector<int> b = betti(intersection);
         int bc = binomialCoefficient(numC, numS);
         for (int j = 0; j < sigma.size(); j++) {
-            sigma[j] += (float) (j < b.size() ? b[j] : 0) / bc;
+            sigma[j] += j < b.size() ? (float) b[j] / bc : 0;
         }
     }
     return sigma;
@@ -465,7 +465,7 @@ std::vector<float> tau(SimplicialComplex sc) {
         }
         tau[0] += 1.0 / (1 + numC);
         for (int j = 1; j < tau.size(); j++) {
-            tau[j] += (j - 1 < s.size() ? s[j - 1] : 0) / (1 + numC);
+            tau[j] += j - 1 < s.size() ? s[j - 1] / (1 + numC) : 0;
         }
     }
     return tau;
